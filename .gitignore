@@ -66,3 +66,6 @@ fastlane/test_output
 
 # Workspace shared data (package configs, etc.)
 *.xcworkspace/xcshareddata/
+
+# Secrets
+Config.xcconfig

@@ -11,12 +11,17 @@ import Supabase
 class SupabaseService {
     static let shared = SupabaseService()
     
-    let client = SupabaseClient(
-        supabaseURL: URL(string: "REDACTED_URL")!,
-        supabaseKey: "REDACTED_KEY"
-    )
+    let client: SupabaseClient
     
-    private init() {}
+    private init() {
+        let urlString = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String ?? ""
+        let key = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_KEY") as? String ?? ""
+        
+        client = SupabaseClient(
+            supabaseURL: URL(string: urlString)!,
+            supabaseKey: key
+        )
+    }
     
     // Auth
     func signInAnonymously() async throws {
