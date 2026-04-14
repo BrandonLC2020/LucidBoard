@@ -7,6 +7,8 @@
 
 import SwiftUI
 import Combine
+import Supabase
+import Realtime
 
 class BoardViewModel: ObservableObject {
     @Published var board: Board
@@ -66,25 +68,36 @@ class BoardViewModel: ObservableObject {
     @MainActor
     private func handleRealtimeChange(_ change: AnyAction) async {
         switch change {
-        case .insert(let action), .update(let action):
+        case .insert(let action):
             do {
-                let note: Note = try action.decode()
-                if let existingVM = noteViewModels[note.id] {
-                    if note.updatedAt > existingVM.note.updatedAt {
-                        withAnimation(.spring()) {
-                            existingVM.note = note
-                        }
-                    }
-                } else {
-                    noteViewModels[note.id] = NoteViewModel(note: note)
-                }
+                let note: Note = try action.record.decode()
+                updateOrAddNote(note)
             } catch {
-                print("Error decoding realtime note: \(error)")
+                print("Error decoding insert note: \(error)")
+            }
+        case .update(let action):
+            do {
+                let note: Note = try action.record.decode()
+                updateOrAddNote(note)
+            } catch {
+                print("Error decoding update note: \(error)")
             }
         case .delete(let action):
             break
         default:
             break
+        }
+    }
+    
+    private func updateOrAddNote(_ note: Note) {
+        if let existingVM = noteViewModels[note.id] {
+            if note.updatedAt > existingVM.note.updatedAt {
+                withAnimation(.spring()) {
+                    existingVM.note = note
+                }
+            }
+        } else {
+            noteViewModels[note.id] = NoteViewModel(note: note)
         }
     }
     
