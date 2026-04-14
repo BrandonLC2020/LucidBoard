@@ -1,0 +1,10 @@
+//
+//  Sample.xcconfig
+//  LucidBoard
+//
+//  Created by Gemini CLI.
+//
+
+// Get these from your Supabase Project Settings > API
+SUPABASE_URL = https://your-project-id.supabase.co
+SUPABASE_KEY = your-anon-public-key
