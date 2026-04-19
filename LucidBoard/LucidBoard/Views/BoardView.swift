@@ -50,10 +50,21 @@ struct BoardView: View {
                             await viewModel.triggerAutoOrganize()
                         }
                     }) {
-                        Image(systemName: "sparkles.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.purple)
+                        ZStack {
+                            if viewModel.isOrganizing {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(.purple)
+                                    .frame(width: 32, height: 32)
+                            } else {
+                                Image(systemName: "sparkles.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(.purple)
+                            }
+                        }
+                        .frame(width: 32, height: 32)
                     }
+                    .disabled(viewModel.isOrganizing)
                     .padding()
                     .background(.ultraThinMaterial)
                     .clipShape(Circle())

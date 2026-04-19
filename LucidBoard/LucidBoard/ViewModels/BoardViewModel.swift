@@ -19,6 +19,7 @@ class BoardViewModel: ObservableObject {
     // Canvas State
     @Published var offset: CGSize = .zero
     @Published var scale: CGFloat = 1.0
+    @Published var isOrganizing: Bool = false
     
     // Last gesture state to handle cumulative panning/zooming
     var lastOffset: CGSize = .zero
@@ -115,6 +116,9 @@ class BoardViewModel: ObservableObject {
     // Auto-Organize (Phase 4, Step 4)
     @MainActor
     func triggerAutoOrganize() async {
+        guard !isOrganizing else { return }
+        isOrganizing = true
+        defer { isOrganizing = false }
         do {
             let newPositions = try await supabase.autoOrganize(boardId: board.id)
             for (id, pos) in newPositions {
@@ -123,7 +127,6 @@ class BoardViewModel: ObservableObject {
                         noteVM.note.posX = pos.0
                         noteVM.note.posY = pos.1
                     }
-                    // Sync the new position
                     noteVM.syncNote()
                 }
             }
