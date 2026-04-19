@@ -18,8 +18,12 @@ struct BoardView: View {
             
             // Canvas Layer
             ZStack {
-                ForEach(Array(viewModel.noteViewModels.values)) { noteVM in
-                    NoteView(viewModel: noteVM)
+                ForEach(Array(viewModel.noteViewModels.values).sorted { $0.note.zIndex < $1.note.zIndex }) { noteVM in
+                    NoteView(viewModel: noteVM) {
+                        viewModel.deleteNote(id: noteVM.id)
+                    } onBringToFront: {
+                        viewModel.bringToFront(id: noteVM.id)
+                    }
                 }
             }
             .offset(viewModel.offset)

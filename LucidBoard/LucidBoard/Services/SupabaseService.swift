@@ -50,6 +50,13 @@ class SupabaseService {
             .upsert(note)
             .execute()
     }
+
+    func deleteNote(id: UUID) async throws {
+        try await client.from("notes")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+    }
     
     // AI Clustering (Phase 4)
     func autoOrganize(boardId: UUID) async throws -> [UUID: (Float, Float)] {

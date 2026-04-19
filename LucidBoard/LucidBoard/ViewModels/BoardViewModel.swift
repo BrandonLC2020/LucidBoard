@@ -83,7 +83,12 @@ class BoardViewModel: ObservableObject {
                 print("Error decoding update note: \(error)")
             }
         case .delete(let action):
-            break
+            do {
+                let note: Note = try action.oldRecord.decode()
+                noteViewModels.removeValue(forKey: note.id)
+            } catch {
+                print("Error decoding delete note: \(error)")
+            }
         default:
             break
         }
@@ -121,6 +126,23 @@ class BoardViewModel: ObservableObject {
         }
     }
     
+    @MainActor
+    func deleteNote(id: UUID) {
+        noteViewModels.removeValue(forKey: id)
+        Task {
+            try? await supabase.deleteNote(id: id)
+        }
+    }
+
+    @MainActor
+    func bringToFront(id: UUID) {
+        guard let vm = noteViewModels[id] else { return }
+        let maxZ = noteViewModels.values.map { $0.note.zIndex }.max() ?? 0
+        guard vm.note.zIndex < maxZ else { return }
+        vm.note.zIndex = maxZ + 1
+        vm.syncNote()
+    }
+
     func addNote(at point: CGPoint) {
         let newNote = Note(
             id: UUID(),

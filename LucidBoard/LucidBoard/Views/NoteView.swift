@@ -10,11 +10,13 @@ import SwiftUI
 struct NoteView: View {
     @ObservedObject var viewModel: NoteViewModel
     @State private var mode: NoteMode = .text
-    
+    var onDelete: () -> Void = {}
+    var onBringToFront: () -> Void = {}
+
     enum NoteMode {
         case text, drawing
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -29,6 +31,10 @@ struct NoteView: View {
                 Spacer()
                 Image(systemName: "hand.tap")
                     .foregroundStyle(viewModel.isDragging ? .blue : .secondary)
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red.opacity(0.8))
+                }
             }
             .padding(.horizontal, 4)
             .padding(.top, 4)
@@ -64,6 +70,9 @@ struct NoteView: View {
         .gesture(
             DragGesture()
                 .onChanged { value in
+                    if !viewModel.isDragging {
+                        onBringToFront()
+                    }
                     viewModel.isDragging = true
                     viewModel.updatePosition(to: CGPoint(
                         x: CGFloat(viewModel.note.posX) + value.translation.width,
