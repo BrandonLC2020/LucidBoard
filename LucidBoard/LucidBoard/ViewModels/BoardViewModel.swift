@@ -204,6 +204,8 @@ class BoardViewModel: ObservableObject {
             posX: Float(point.x),
             posY: Float(point.y),
             zIndex: (noteViewModels.values.map { $0.note.zIndex }.max() ?? 0) + 1,
+            template: .plain,
+            checklistItems: [],
             createdAt: Date(),
             updatedAt: Date()
         )

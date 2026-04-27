@@ -63,4 +63,41 @@ class NoteViewModel: ObservableObject, Identifiable {
     func finalizePosition() {
         syncNote()
     }
+    
+    // Template & Checklist Actions
+    
+    func updateTemplate(_ template: NoteTemplate) {
+        note.template = template
+        if template == .checklist && (note.checklistItems == nil || note.checklistItems?.isEmpty == true) {
+            note.checklistItems = [ChecklistItem()]
+        }
+        syncNote()
+    }
+    
+    func addChecklistItem() {
+        if note.checklistItems == nil {
+            note.checklistItems = []
+        }
+        note.checklistItems?.append(ChecklistItem())
+        syncNote()
+    }
+    
+    func toggleChecklistItem(id: UUID) {
+        if let index = note.checklistItems?.firstIndex(where: { $0.id == id }) {
+            note.checklistItems?[index].isCompleted.toggle()
+            syncNote()
+        }
+    }
+    
+    func updateChecklistItemText(id: UUID, text: String) {
+        if let index = note.checklistItems?.firstIndex(where: { $0.id == id }) {
+            note.checklistItems?[index].text = text
+            syncNote()
+        }
+    }
+    
+    func deleteChecklistItem(id: UUID) {
+        note.checklistItems?.removeAll(where: { $0.id == id })
+        syncNote()
+    }
 }

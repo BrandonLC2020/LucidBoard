@@ -40,6 +40,20 @@ struct NoteView: View {
                     Image(systemName: "pencil.tip")
                         .foregroundStyle(mode == .drawing ? .primary : .secondary)
                 }
+                
+                Menu {
+                    Section("Templates") {
+                        Button("Plain") { viewModel.updateTemplate(.plain) }
+                        Button("Checklist") { viewModel.updateTemplate(.checklist) }
+                        Button("Lined") { viewModel.updateTemplate(.lined) }
+                        Button("Circle") { viewModel.updateTemplate(.circle) }
+                        Button("Diamond") { viewModel.updateTemplate(.diamond) }
+                    }
+                } label: {
+                    Image(systemName: "doc.richtext.fill")
+                        .foregroundStyle(.secondary)
+                }
+                
                 Spacer()
                 ColorPicker("", selection: colorBinding, supportsOpacity: false)
                     .labelsHidden()
@@ -55,19 +69,27 @@ struct NoteView: View {
             .padding(.top, 4)
             
             ZStack {
-                if mode == .text {
-                    TextEditor(text: Binding(
-                        get: { viewModel.note.contentText ?? "" },
-                        set: { 
-                            viewModel.note.contentText = $0 
-                            viewModel.syncNote() 
-                        }
-                    ))
-                    .font(.system(size: 14, weight: .medium, design: .default))
-                    .scrollContentBackground(.hidden)
+                // Background Layer (Templates & Patterns)
+                NoteTemplateView(viewModel: viewModel, mode: mode)
+                
+                // Content Layer
+                if viewModel.note.template == .checklist && mode == .text {
+                    // Handled inside NoteTemplateView for checklists
                 } else {
-                    PencilKitView(drawing: $viewModel.drawing)
-                        .allowsHitTesting(mode == .drawing)
+                    if mode == .text {
+                        TextEditor(text: Binding(
+                            get: { viewModel.note.contentText ?? "" },
+                            set: { 
+                                viewModel.note.contentText = $0 
+                                viewModel.syncNote() 
+                            }
+                        ))
+                        .font(.system(size: 14, weight: .medium, design: .default))
+                        .scrollContentBackground(.hidden)
+                    } else {
+                        PencilKitView(drawing: $viewModel.drawing)
+                            .allowsHitTesting(mode == .drawing)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -75,11 +97,11 @@ struct NoteView: View {
         .frame(width: 200, height: 200)
         .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            noteShape
                 .fill(Color(hex: viewModel.note.color).opacity(0.8))
                 .background(.ultraThinMaterial)
         )
-        .cornerRadius(12)
+        .clipShape(noteShape)
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
         .offset(
             x: CGFloat(viewModel.note.posX) + dragOffset.width,
@@ -107,6 +129,17 @@ struct NoteView: View {
                     viewModel.finalizePosition()
                 }
         )
+    }
+    
+    private var noteShape: AnyShape {
+        switch viewModel.note.template {
+        case .circle:
+            return AnyShape(Circle())
+        case .diamond:
+            return AnyShape(DiamondShape())
+        default:
+            return AnyShape(RoundedRectangle(cornerRadius: 12))
+        }
     }
 }
 
