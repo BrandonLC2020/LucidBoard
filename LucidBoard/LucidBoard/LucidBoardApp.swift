@@ -13,6 +13,8 @@ struct LucidBoardApp: App {
         id: UUID(),
         userId: UUID(),
         title: "My First Board",
+        backgroundColor: "#FFFFFF",
+        backgroundLayout: .grid,
         createdAt: Date(),
         updatedAt: Date()
     ))

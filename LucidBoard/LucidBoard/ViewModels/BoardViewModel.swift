@@ -134,6 +134,24 @@ class BoardViewModel: ObservableObject {
         }
     }
     
+    func updateBackgroundColor(_ color: String) {
+        board.backgroundColor = color
+        board.updatedAt = Date()
+        syncBoard()
+    }
+    
+    func updateBackgroundLayout(_ layout: BackgroundLayout) {
+        board.backgroundLayout = layout
+        board.updatedAt = Date()
+        syncBoard()
+    }
+    
+    private func syncBoard() {
+        Task {
+            try? await supabase.updateBoard(board)
+        }
+    }
+    
     // Auto-Organize (Phase 4, Step 4)
     @MainActor
     func triggerAutoOrganize() async {

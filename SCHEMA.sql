@@ -8,6 +8,8 @@ CREATE TABLE boards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id),
     title TEXT NOT NULL,
+    background_color TEXT DEFAULT '#FFFFFF',
+    background_layout TEXT DEFAULT 'grid',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

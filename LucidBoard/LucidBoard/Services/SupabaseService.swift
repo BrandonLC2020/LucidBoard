@@ -53,6 +53,13 @@ class SupabaseService {
             .value
     }
     
+    func updateBoard(_ board: Board) async throws {
+        try await client.from("boards")
+            .update(board)
+            .eq("id", value: board.id)
+            .execute()
+    }
+    
     // Notes
     func fetchNotes(boardId: UUID) async throws -> [Note] {
         return try await client.from("notes")

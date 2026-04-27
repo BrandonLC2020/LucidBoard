@@ -16,16 +16,16 @@ struct BoardView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Infinite Grid Background
-                InfiniteGrid()
-                    .stroke(Color.gray.opacity(0.15), lineWidth: 1)
-                    .offset(combinedOffset)
-                    .scaleEffect(combinedScale)
-                    .drawingGroup() // Optimize grid rendering
+                // Infinite Background Layer
+                BoardBackgroundView(
+                    layout: viewModel.board.backgroundLayout,
+                    color: backgroundColor
+                )
+                .offset(combinedOffset)
+                .scaleEffect(combinedScale)
                 
-                // Canvas Layer
+                // Canvas Layer (Notes)
                 ZStack {
-                    // Filter and Sort can be expensive, but needed for Z-index
                     ForEach(Array(viewModel.noteViewModels.values).sorted { $0.note.zIndex < $1.note.zIndex }) { noteVM in
                         NoteView(viewModel: noteVM) {
                             viewModel.deleteNote(id: noteVM.id)
@@ -39,10 +39,38 @@ struct BoardView: View {
                 
                 // UI Layer (Floating Toolbars)
                 VStack {
+                    HStack {
+                        Spacer()
+                        Menu {
+                            Section("Background Color") {
+                                Button("Default (White)") { viewModel.updateBackgroundColor("#FFFFFF") }
+                                Button("Light Gray") { viewModel.updateBackgroundColor("#F2F2F7") }
+                                Button("Sepia") { viewModel.updateBackgroundColor("#F4ECD8") }
+                                Button("Dark Blue") { viewModel.updateBackgroundColor("#1C1C1E") }
+                            }
+                            Section("Layout Pattern") {
+                                Button("Grid") { viewModel.updateBackgroundLayout(.grid) }
+                                Button("Dot Grid") { viewModel.updateBackgroundLayout(.dotGrid) }
+                                Button("Horizontal Lines") { viewModel.updateBackgroundLayout(.horizontalLines) }
+                                Button("Vertical Lines") { viewModel.updateBackgroundLayout(.verticalLines) }
+                                Button("Plain") { viewModel.updateBackgroundLayout(.plain) }
+                            }
+                        } label: {
+                            Image(systemName: "paintpalette.fill")
+                                .font(.system(size: 20))
+                                .padding(12)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                                .shadow(color: .black.opacity(0.1), radius: 5)
+                        }
+                        .padding(.top, 50)
+                        .padding(.trailing, 20)
+                    }
+                    
                     Spacer()
+                    
                     HStack(spacing: 20) {
                         Button(action: {
-                            // Add note relative to viewport center
                             let center = CGPoint(
                                 x: (geometry.size.width / 2 - viewModel.offset.width - currentOffset.width) / combinedScale,
                                 y: (geometry.size.height / 2 - viewModel.offset.height - currentOffset.height) / combinedScale
@@ -86,7 +114,7 @@ struct BoardView: View {
                     .padding(.bottom, 40)
                 }
             }
-            .contentShape(Rectangle()) // Make the whole area tappable for gestures
+            .contentShape(Rectangle())
             .gesture(
                 SimultaneousGesture(
                     DragGesture(minimumDistance: 0)
@@ -111,7 +139,10 @@ struct BoardView: View {
             )
         }
         .edgesIgnoringSafeArea(.all)
-        .background(Color(UIColor.systemBackground))
+    }
+    
+    private var backgroundColor: Color {
+        Color(hex: viewModel.board.backgroundColor)
     }
     
     private var combinedOffset: CGSize {
@@ -126,34 +157,13 @@ struct BoardView: View {
     }
 }
 
-// Simple Grid helper
-struct InfiniteGrid: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let step: CGFloat = 50
-        
-        // Extend drawing range to cover common movement areas
-        let range: CGFloat = 5000
-        
-        for x in stride(from: -range, through: range, by: step) {
-            path.move(to: CGPoint(x: x, y: -range))
-            path.addLine(to: CGPoint(x: x, y: range))
-        }
-        
-        for y in stride(from: -range, through: range, by: step) {
-            path.move(to: CGPoint(x: -range, y: y))
-            path.addLine(to: CGPoint(x: range, y: y))
-        }
-        
-        return path
-    }
-}
-
 #Preview {
     BoardView(viewModel: BoardViewModel(board: Board(
         id: UUID(),
         userId: UUID(),
         title: "Test Board",
+        backgroundColor: "#FFFFFF",
+        backgroundLayout: .grid,
         createdAt: Date(),
         updatedAt: Date()
     )))
