@@ -25,6 +25,10 @@ class BoardViewModel: ObservableObject {
     var lastOffset: CGSize = .zero
     var lastScale: CGFloat = 1.0
     
+    // Track local updates to prevent server broadcast feedback loops
+    private var lastLocalUpdates: [UUID: Date] = [:]
+    private let broadcastBuffer: TimeInterval = 2.0 // Ignore broadcasts for 2s after local change
+    
     private let supabase = SupabaseService.shared
     
     init(board: Board) {
@@ -41,11 +45,19 @@ class BoardViewModel: ObservableObject {
         do {
             let notes = try await supabase.fetchNotes(boardId: board.id)
             for note in notes {
-                noteViewModels[note.id] = NoteViewModel(note: note)
+                createViewModel(for: note)
             }
         } catch {
             print("Error fetching notes: \(error)")
         }
+    }
+    
+    private func createViewModel(for note: Note) {
+        let vm = NoteViewModel(note: note)
+        vm.onLocalUpdate = { [weak self] id in
+            self?.lastLocalUpdates[id] = Date()
+        }
+        noteViewModels[note.id] = vm
     }
     
     @MainActor
@@ -91,8 +103,6 @@ class BoardViewModel: ObservableObject {
                 print("Error decoding update note: \(error)")
             }
         case .delete(let action):
-            // oldRecord with default replica identity only contains PK columns,
-            // so decode just the id rather than a full Note to avoid failures.
             do {
                 let record: NoteIDRecord = try action.oldRecord.decode()
                 noteViewModels.removeValue(forKey: record.id)
@@ -105,16 +115,22 @@ class BoardViewModel: ObservableObject {
     }
 
     private func updateOrAddNote(_ note: Note) {
+        // If we recently updated this note locally, ignore incoming broadcasts to prevent jank
+        if let lastLocal = lastLocalUpdates[note.id], Date().timeIntervalSince(lastLocal) < broadcastBuffer {
+            return
+        }
+
         if let existingVM = noteViewModels[note.id] {
             // Don't interrupt a note that the local user is actively dragging.
             guard !existingVM.isDragging else { return }
+            
             if note.updatedAt > existingVM.note.updatedAt {
                 withAnimation(.spring()) {
                     existingVM.note = note
                 }
             }
         } else {
-            noteViewModels[note.id] = NoteViewModel(note: note)
+            createViewModel(for: note)
         }
     }
     
@@ -128,6 +144,7 @@ class BoardViewModel: ObservableObject {
             let newPositions = try await supabase.autoOrganize(boardId: board.id)
             for (id, pos) in newPositions {
                 if let noteVM = noteViewModels[id] {
+                    lastLocalUpdates[id] = Date() // Mark as local update to prevent snap-back
                     withAnimation(.spring(response: 1.0, dampingFraction: 0.7)) {
                         noteVM.note.posX = pos.0
                         noteVM.note.posY = pos.1
@@ -154,6 +171,7 @@ class BoardViewModel: ObservableObject {
         let maxZ = noteViewModels.values.map { $0.note.zIndex }.max() ?? 0
         guard vm.note.zIndex < maxZ else { return }
         vm.note.zIndex = maxZ + 1
+        lastLocalUpdates[id] = Date()
         vm.syncNote()
     }
 
@@ -172,7 +190,8 @@ class BoardViewModel: ObservableObject {
             updatedAt: Date()
         )
         
-        noteViewModels[newNote.id] = NoteViewModel(note: newNote)
+        lastLocalUpdates[newNote.id] = Date()
+        createViewModel(for: newNote)
         
         Task {
             try? await supabase.upsertNote(newNote)

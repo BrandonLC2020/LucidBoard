@@ -10,6 +10,8 @@ import SwiftUI
 struct NoteView: View {
     @ObservedObject var viewModel: NoteViewModel
     @State private var mode: NoteMode = .text
+    @State private var dragOffset: CGSize = .zero
+    
     var onDelete: () -> Void = {}
     var onBringToFront: () -> Void = {}
 
@@ -58,13 +60,14 @@ struct NoteView: View {
                         get: { viewModel.note.contentText ?? "" },
                         set: { 
                             viewModel.note.contentText = $0 
-                            viewModel.syncNote() // Basic debounced or direct sync
+                            viewModel.syncNote() 
                         }
                     ))
                     .font(.system(size: 14, weight: .medium, design: .default))
                     .scrollContentBackground(.hidden)
                 } else {
                     PencilKitView(drawing: $viewModel.drawing)
+                        .allowsHitTesting(mode == .drawing)
                 }
             }
             .frame(width: 200, height: 200)
@@ -77,22 +80,28 @@ struct NoteView: View {
         )
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-        .position(x: CGFloat(viewModel.note.posX), y: CGFloat(viewModel.note.posY))
+        .offset(
+            x: CGFloat(viewModel.note.posX) + dragOffset.width,
+            y: CGFloat(viewModel.note.posY) + dragOffset.height
+        )
         .scaleEffect(viewModel.isDragging ? 1.05 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6, blendDuration: 0), value: viewModel.isDragging)
+        .animation(.interactiveSpring(), value: dragOffset)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.isDragging)
         .gesture(
-            DragGesture()
+            DragGesture(minimumDistance: 5)
                 .onChanged { value in
                     if !viewModel.isDragging {
                         onBringToFront()
+                        viewModel.isDragging = true
                     }
-                    viewModel.isDragging = true
+                    dragOffset = value.translation
+                }
+                .onEnded { value in
                     viewModel.updatePosition(to: CGPoint(
                         x: CGFloat(viewModel.note.posX) + value.translation.width,
                         y: CGFloat(viewModel.note.posY) + value.translation.height
                     ))
-                }
-                .onEnded { _ in
+                    dragOffset = .zero
                     viewModel.isDragging = false
                     viewModel.finalizePosition()
                 }

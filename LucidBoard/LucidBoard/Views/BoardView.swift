@@ -10,89 +10,119 @@ import SwiftUI
 struct BoardView: View {
     @StateObject var viewModel: BoardViewModel
     
+    @State private var currentOffset: CGSize = .zero
+    @State private var currentScale: CGFloat = 1.0
+    
     var body: some View {
-        ZStack {
-            // Infinite Grid Background (Optional but helpful for spatial sense)
-            InfiniteGrid()
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
-            
-            // Canvas Layer
+        GeometryReader { geometry in
             ZStack {
-                ForEach(Array(viewModel.noteViewModels.values).sorted { $0.note.zIndex < $1.note.zIndex }) { noteVM in
-                    NoteView(viewModel: noteVM) {
-                        viewModel.deleteNote(id: noteVM.id)
-                    } onBringToFront: {
-                        viewModel.bringToFront(id: noteVM.id)
+                // Infinite Grid Background
+                InfiniteGrid()
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 1)
+                    .offset(combinedOffset)
+                    .scaleEffect(combinedScale)
+                    .drawingGroup() // Optimize grid rendering
+                
+                // Canvas Layer
+                ZStack {
+                    // Filter and Sort can be expensive, but needed for Z-index
+                    ForEach(Array(viewModel.noteViewModels.values).sorted { $0.note.zIndex < $1.note.zIndex }) { noteVM in
+                        NoteView(viewModel: noteVM) {
+                            viewModel.deleteNote(id: noteVM.id)
+                        } onBringToFront: {
+                            viewModel.bringToFront(id: noteVM.id)
+                        }
                     }
                 }
-            }
-            .offset(viewModel.offset)
-            .scaleEffect(viewModel.scale)
-            
-            // UI Layer (Floating Toolbars)
-            VStack {
-                Spacer()
-                HStack(spacing: 20) {
-                    Button(action: {
-                        viewModel.addNote(at: CGPoint(x: 400, y: 400)) // Simple fixed center for now
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(.primary)
-                    }
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                    
-                    Button(action: {
-                        Task {
-                            await viewModel.triggerAutoOrganize()
+                .offset(combinedOffset)
+                .scaleEffect(combinedScale)
+                
+                // UI Layer (Floating Toolbars)
+                VStack {
+                    Spacer()
+                    HStack(spacing: 20) {
+                        Button(action: {
+                            // Add note relative to viewport center
+                            let center = CGPoint(
+                                x: (geometry.size.width / 2 - viewModel.offset.width - currentOffset.width) / combinedScale,
+                                y: (geometry.size.height / 2 - viewModel.offset.height - currentOffset.height) / combinedScale
+                            )
+                            viewModel.addNote(at: center)
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundStyle(.primary)
                         }
-                    }) {
-                        ZStack {
-                            if viewModel.isOrganizing {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .tint(.purple)
-                                    .frame(width: 32, height: 32)
-                            } else {
-                                Image(systemName: "sparkles.circle.fill")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(.purple)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                        
+                        Button(action: {
+                            Task {
+                                await viewModel.triggerAutoOrganize()
                             }
+                        }) {
+                            ZStack {
+                                if viewModel.isOrganizing {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                        .tint(.purple)
+                                        .frame(width: 32, height: 32)
+                                } else {
+                                    Image(systemName: "sparkles.circle.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundStyle(.purple)
+                                }
+                            }
+                            .frame(width: 32, height: 32)
                         }
-                        .frame(width: 32, height: 32)
+                        .disabled(viewModel.isOrganizing)
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                     }
-                    .disabled(viewModel.isOrganizing)
-                    .padding()
-                    .background(.ultraThinMaterial)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    .padding(.bottom, 40)
                 }
-                .padding(.bottom, 40)
             }
+            .contentShape(Rectangle()) // Make the whole area tappable for gestures
+            .gesture(
+                SimultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            currentOffset = value.translation
+                        }
+                        .onEnded { value in
+                            viewModel.handlePanGesture(value.translation)
+                            viewModel.finalizePanGesture()
+                            currentOffset = .zero
+                        },
+                    MagnificationGesture()
+                        .onChanged { value in
+                            currentScale = value
+                        }
+                        .onEnded { value in
+                            viewModel.handleZoomGesture(value)
+                            viewModel.finalizeZoomGesture()
+                            currentScale = 1.0
+                        }
+                )
+            )
         }
         .edgesIgnoringSafeArea(.all)
-        .gesture(
-            SimultaneousGesture(
-                DragGesture()
-                    .onChanged { value in
-                        viewModel.handlePanGesture(value.translation)
-                    }
-                    .onEnded { _ in
-                        viewModel.finalizePanGesture()
-                    },
-                MagnificationGesture()
-                    .onChanged { value in
-                        viewModel.handleZoomGesture(value)
-                    }
-                    .onEnded { _ in
-                        viewModel.finalizeZoomGesture()
-                    }
-            )
-        )
         .background(Color(UIColor.systemBackground))
+    }
+    
+    private var combinedOffset: CGSize {
+        CGSize(
+            width: viewModel.offset.width + currentOffset.width,
+            height: viewModel.offset.height + currentOffset.height
+        )
+    }
+    
+    private var combinedScale: CGFloat {
+        viewModel.scale * currentScale
     }
 }
 
@@ -102,14 +132,17 @@ struct InfiniteGrid: Shape {
         var path = Path()
         let step: CGFloat = 50
         
-        for x in stride(from: 0, through: rect.width, by: step) {
-            path.move(to: CGPoint(x: x, y: 0))
-            path.addLine(to: CGPoint(x: x, y: rect.height))
+        // Extend drawing range to cover common movement areas
+        let range: CGFloat = 5000
+        
+        for x in stride(from: -range, through: range, by: step) {
+            path.move(to: CGPoint(x: x, y: -range))
+            path.addLine(to: CGPoint(x: x, y: range))
         }
         
-        for y in stride(from: 0, through: rect.height, by: step) {
-            path.move(to: CGPoint(x: 0, y: y))
-            path.addLine(to: CGPoint(x: rect.width, y: y))
+        for y in stride(from: -range, through: range, by: step) {
+            path.move(to: CGPoint(x: -range, y: y))
+            path.addLine(to: CGPoint(x: range, y: y))
         }
         
         return path

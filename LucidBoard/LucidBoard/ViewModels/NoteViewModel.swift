@@ -14,6 +14,9 @@ class NoteViewModel: ObservableObject, Identifiable {
     @Published var isDragging: Bool = false
     @Published var drawing: PKDrawing = PKDrawing()
     
+    // Callback to notify the board of local changes
+    var onLocalUpdate: ((UUID) -> Void)?
+    
     private var cancellables = Set<AnyCancellable>()
     private let supabase = SupabaseService.shared
     
@@ -34,16 +37,16 @@ class NoteViewModel: ObservableObject, Identifiable {
             .dropFirst()
             .debounce(for: .seconds(1), scheduler: RunLoop.main)
             .sink { [weak self] newDrawing in
-                self?.syncNote()
+                guard let self = self else { return }
+                self.note.contentDrawing = newDrawing.dataRepresentation()
+                self.syncNote()
             }
             .store(in: &cancellables)
-            
-        // Observe note changes (content text, color, position)
-        // Since we modify 'note' directly in some places, we'll use a specific publisher or just call sync manually.
     }
     
     func syncNote() {
         self.note.updatedAt = Date()
+        onLocalUpdate?(note.id)
         Task {
             try? await supabase.upsertNote(self.note)
         }
@@ -54,7 +57,7 @@ class NoteViewModel: ObservableObject, Identifiable {
     func updatePosition(to point: CGPoint) {
         note.posX = Float(point.x)
         note.posY = Float(point.y)
-        // We'll sync at the end of dragging to avoid too many writes
+        onLocalUpdate?(note.id)
     }
     
     func finalizePosition() {
