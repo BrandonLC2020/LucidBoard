@@ -177,4 +177,9 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+
+    func toHex() -> String? {
+        let uiColor = UIColor(self)
+        return uiColor.hexString
+    }
 }

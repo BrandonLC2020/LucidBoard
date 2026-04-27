@@ -164,7 +164,7 @@ struct BoardView: View {
                 )
                 .navigationDestination(for: String.self) { destination in
                     if destination == "settings" {
-                        Text("Settings Placeholder") // Task 4 will implement SettingsView
+                        SettingsView()
                     }
                 }
             }
