@@ -81,6 +81,25 @@ class SupabaseService {
             .eq("id", value: id)
             .execute()
     }
+
+    // Profiles
+    func fetchProfile() async throws -> AppSettings? {
+        let user = try await client.auth.session.user
+        let profile: [String: AppSettings]? = try await client.from("profiles")
+            .select("settings")
+            .eq("id", value: user.id)
+            .single()
+            .execute()
+            .value
+        return profile?["settings"]
+    }
+
+    func updateProfile(settings: AppSettings) async throws {
+        let user = try await client.auth.session.user
+        try await client.from("profiles")
+            .upsert(["id": AnyJSON.string(user.id.uuidString), "settings": try AnyJSON(settings), "updated_at": AnyJSON.string(ISO8601DateFormatter().string(from: Date()))])
+            .execute()
+    }
     
     // AI Clustering (Phase 4)
     func autoOrganize(boardId: UUID) async throws -> [UUID: (Float, Float)] {
