@@ -194,17 +194,18 @@ class BoardViewModel: ObservableObject {
     }
 
     func addNote(at point: CGPoint) {
+        let settings = SettingsManager.shared.settings
         let newNote = Note(
             id: UUID(),
             boardId: board.id,
             userId: board.userId,
             contentText: "",
             contentDrawing: nil,
-            color: "#FFFF00", // Default yellow
+            color: settings.defaultNoteColor,
             posX: Float(point.x),
             posY: Float(point.y),
             zIndex: (noteViewModels.values.map { $0.note.zIndex }.max() ?? 0) + 1,
-            template: .plain,
+            template: settings.defaultNoteTemplate,
             checklistItems: [],
             createdAt: Date(),
             updatedAt: Date()
