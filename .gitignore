@@ -69,3 +69,13 @@ fastlane/test_output
 
 # Secrets
 Config.xcconfig
+
+# b1CodingTool Generated
+CLAUDE.md
+.claude/
+GEMINI.md
+
+# User requested additions
+.agent/
+agent.md
+.gitignore
