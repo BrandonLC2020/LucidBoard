@@ -11,6 +11,7 @@ from core.managers import AnonymousUserManager, UserScopedManager
 
 class User(AbstractBaseUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # db_column avoids shadowing AbstractBaseUser.is_anonymous property
     is_anonymous_user = models.BooleanField(default=True, db_column="is_anonymous")
     created_at = models.DateTimeField(auto_now_add=True)
 
