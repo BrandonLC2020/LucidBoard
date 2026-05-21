@@ -22,7 +22,7 @@ class AnonymousUserManager(BaseUserManager):
     """
 
     def create_anonymous(self):
-        user = self.model(is_anonymous=True)
+        user = self.model(is_anonymous_user=True)
         user.set_unusable_password()
         user.save(using=self._db)
         return user
