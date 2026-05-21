@@ -6,10 +6,12 @@ from ninja import NinjaAPI
 from ninja.errors import AuthenticationError, ValidationError
 
 from api.routers.auth import router as auth_router
+from api.routers.boards import router as boards_router
 
 api = NinjaAPI(title="LucidBoard Local API", version="0.1.0", urls_namespace="api")
 
 api.add_router("/auth", auth_router)
+api.add_router("/api", boards_router)
 
 
 @api.get("/api/health")
