@@ -197,5 +197,5 @@ struct BoardView: View {
         backgroundLayout: .grid,
         createdAt: Date(),
         updatedAt: Date()
-    )))
+    ), repository: SupabaseRepository()))
 }
