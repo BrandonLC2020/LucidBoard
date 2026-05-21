@@ -241,10 +241,25 @@ protocol AppRepository {
 
     // AI
     func autoOrganize(boardId: UUID) async throws -> [UUID: (Float, Float)]
+
+    // Realtime (see §5.6)
+    func subscribeToNotes(
+        boardId: UUID,
+        onChange: @escaping (NoteChange) -> Void
+    ) -> NoteSubscription
+}
+
+enum NoteChange {
+    case upsert(Note)
+    case delete(id: UUID)
+}
+
+protocol NoteSubscription {
+    func cancel()
 }
 ```
 
-This is the existing `SupabaseService` surface, lifted verbatim into a protocol. Method signatures stay identical so ViewModel call sites need zero changes.
+This lifts the existing `SupabaseService` surface into a protocol, plus a new `subscribeToNotes` method that abstracts the Realtime channel currently used directly in `BoardViewModel.subscribeToRealtime()`.
 
 ### 5.2 Two implementations
 
@@ -281,11 +296,25 @@ A small `TokenStore` actor stores the JWT and user UUID in Keychain (Apple's `Se
 
 ### 5.5 What changes in existing code
 
-1. `SupabaseService.shared` references in ViewModels are replaced with the injected `AppRepository`. This is the only meaningful Swift refactor.
-2. `LucidBoardApp.swift` instantiates the repo via `AppRepositoryFactory.make()` once and injects it.
-3. `Config.xcconfig` / `Sample.xcconfig` gain two keys.
+1. `SupabaseService.shared` references are replaced with the injected `AppRepository`. Touched files:
+   - `ViewModels/BoardViewModel.swift` (3 call sites + `subscribeToRealtime()` is replaced with a call to `appRepository.subscribeToNotes(...)`)
+   - `ViewModels/NoteViewModel.swift` (1 call site in `syncNote`)
+   - `Services/SettingsManager.swift` (2 call sites: `updateProfile`, `fetchProfile`)
+2. `LucidBoardApp.swift` instantiates the repo via `AppRepositoryFactory.make()` once and injects it via `.environment(\.appRepository, repo)`.
+3. `Config.xcconfig` / `Sample.xcconfig` gain `BACKEND_KIND` and `LOCAL_API_URL` keys.
 
 Models, Views, the canvas, and PencilKit code are untouched.
+
+### 5.6 Realtime subscription
+
+`BoardViewModel.subscribeToRealtime()` currently subscribes directly to Supabase Realtime via `client.channel().postgresChange(...)`. This implementation detail moves behind the protocol:
+
+- **`SupabaseRepository.subscribeToNotes`** — translates the existing Realtime channel logic into the protocol's `NoteChange` enum, returning a `NoteSubscription` that calls `await channel.unsubscribe()` on `.cancel()`.
+- **`LocalAPIRepository.subscribeToNotes`** — returns an inert subscription. The closure is never invoked. `.cancel()` is a no-op.
+
+Multi-device sync therefore simply does not work in local-dev mode. This is a documented, deliberate limitation of Phase 1 — the local backend is for a single developer running a single device. Adding WebSocket-based realtime to the local backend is tracked as a future task (see §9 "Out of Scope").
+
+`BoardViewModel` loses its direct dependencies on `Supabase` and `Realtime` modules and only imports them transitively through `SupabaseRepository`.
 
 ## 6. Error Handling
 
@@ -360,7 +389,7 @@ Then in Xcode: set `BACKEND_KIND = local` in `Config.xcconfig` and build/run.
 
 ## 9. Out of Scope (Explicit)
 
-- Realtime/WebSockets (parity with current code — not yet implemented on Swift side either).
+- WebSocket realtime for the local backend. `LocalAPIRepository.subscribeToNotes` returns an inert subscription; multi-device sync is non-functional in local-dev mode by design.
 - Production deployment (no Dockerfile-for-prod, no `gunicorn`/`uvicorn` config beyond dev).
 - Migration of existing Supabase data into the local DB (local dev starts empty).
 - Multi-user / real-account auth (anonymous only in Phase 1).
