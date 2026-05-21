@@ -55,10 +55,27 @@ enum AppRepositoryFactory {
         }
     }
 
-    /// Convenience: read xcconfig values from the bundle.
+    /// Pick a repository based on build configuration and overrides.
+    ///
+    /// Priority order:
+    ///   1. `LUCIDBOARD_BACKEND_KIND` environment variable (useful for tests and scheme overrides)
+    ///   2. `BACKEND_KIND` / `LOCAL_API_URL` keys in `Info.plist` if present
+    ///   3. Compile-time default: `local` in Debug builds, `supabase` in Release
     static func makeFromBundle() -> AppRepository {
-        let backendKind = (Bundle.main.object(forInfoDictionaryKey: "BACKEND_KIND") as? String) ?? "supabase"
-        let baseURL = (Bundle.main.object(forInfoDictionaryKey: "LOCAL_API_URL") as? String) ?? "http://127.0.0.1:8000"
+        let envKind = ProcessInfo.processInfo.environment["LUCIDBOARD_BACKEND_KIND"]
+        let plistKind = Bundle.main.object(forInfoDictionaryKey: "BACKEND_KIND") as? String
+        let backendKind = envKind ?? plistKind ?? defaultBackendKind
+        let envURL = ProcessInfo.processInfo.environment["LUCIDBOARD_LOCAL_API_URL"]
+        let plistURL = Bundle.main.object(forInfoDictionaryKey: "LOCAL_API_URL") as? String
+        let baseURL = envURL ?? plistURL ?? "http://127.0.0.1:8000"
         return make(backendKind: backendKind, localAPIBaseURL: baseURL, tokenStore: KeychainTokenStore())
+    }
+
+    private static var defaultBackendKind: String {
+        #if DEBUG
+        return "local"
+        #else
+        return "supabase"
+        #endif
     }
 }

@@ -2,9 +2,16 @@
 //  Sample.xcconfig
 //  LucidBoard
 //
-//  Created by Gemini CLI.
-//
 
-// Get these from your Supabase Project Settings > API
+// Get these from your Supabase Project Settings > API (production path).
 SUPABASE_URL = https://your-project-id.supabase.co
 SUPABASE_KEY = your-anon-public-key
+
+// Local-dev backend (Django Ninja). Set BACKEND_KIND = local to route the
+// Swift app through the self-hosted backend at LOCAL_API_URL. Any other
+// value (or leaving it unset) keeps the Supabase code path.
+//
+// The defaults below match the Debug build configuration in the project
+// file; copy them into your own Config.xcconfig if you want to override.
+BACKEND_KIND = supabase
+LOCAL_API_URL = http://127.0.0.1:8000
