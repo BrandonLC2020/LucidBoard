@@ -5,7 +5,11 @@ from django.http import HttpRequest
 from ninja import NinjaAPI
 from ninja.errors import AuthenticationError, ValidationError
 
+from api.routers.auth import router as auth_router
+
 api = NinjaAPI(title="LucidBoard Local API", version="0.1.0", urls_namespace="api")
+
+api.add_router("/auth", auth_router)
 
 
 @api.get("/api/health")
