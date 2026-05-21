@@ -1,0 +1,32 @@
+[project]
+name = "lucidboard-api"
+version = "0.1.0"
+description = "LucidBoard local-dev backend (Supabase replacement)"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0,<6.0",
+    "django-ninja>=1.3",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3.6",
+    "pyjwt>=2.9",
+    "google-generativeai>=0.8",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-postgresql>=6.1",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "ty>=0.0.1a1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "lucidboard_api.settings"
+python_files = "test_*.py"
