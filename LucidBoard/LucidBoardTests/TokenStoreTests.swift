@@ -1,35 +1,38 @@
-import XCTest
+import Foundation
+import Testing
 @testable import LucidBoard
 
-final class TokenStoreTests: XCTestCase {
-    func test_storesAndRetrievesToken() {
+struct TokenStoreTests {
+
+    @Test func storesAndRetrievesToken() {
         let store = InMemoryTokenStore()
-        store.save(token: "abc.def.ghi", userId: UUID(uuidString: "00000000-0000-0000-0000-00000000DEAD")!)
-        XCTAssertEqual(store.currentToken, "abc.def.ghi")
-        XCTAssertEqual(store.currentUserId?.uuidString.lowercased(), "00000000-0000-0000-0000-00000000dead")
+        let id = UUID(uuidString: "00000000-0000-0000-0000-00000000DEAD")!
+        store.save(token: "abc.def.ghi", userId: id)
+        #expect(store.currentToken == "abc.def.ghi")
+        #expect(store.currentUserId?.uuidString.lowercased() == "00000000-0000-0000-0000-00000000dead")
     }
 
-    func test_clearEmptiesStorage() {
+    @Test func clearEmptiesStorage() {
         let store = InMemoryTokenStore()
         store.save(token: "x", userId: UUID())
         store.clear()
-        XCTAssertNil(store.currentToken)
-        XCTAssertNil(store.currentUserId)
+        #expect(store.currentToken == nil)
+        #expect(store.currentUserId == nil)
     }
 
-    func test_isExpiredTrueForExpiredJWT() {
+    @Test func isExpiredTrueForExpiredJWT() {
         let store = InMemoryTokenStore()
         // exp = 1 (Jan 1 1970)
         let expiredJWT = "eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjF9.sig"
         store.save(token: expiredJWT, userId: UUID())
-        XCTAssertTrue(store.isCurrentTokenExpired)
+        #expect(store.isCurrentTokenExpired)
     }
 
-    func test_isExpiredFalseForFutureJWT() {
+    @Test func isExpiredFalseForFutureJWT() {
         let store = InMemoryTokenStore()
         // exp = 9999999999 (year 2286)
         let futureJWT = "eyJhbGciOiJIUzI1NiJ9.eyJleHAiOjk5OTk5OTk5OTl9.sig"
         store.save(token: futureJWT, userId: UUID())
-        XCTAssertFalse(store.isCurrentTokenExpired)
+        #expect(!store.isCurrentTokenExpired)
     }
 }
