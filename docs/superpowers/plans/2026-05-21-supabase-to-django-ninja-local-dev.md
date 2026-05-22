@@ -66,23 +66,23 @@ backend/
 
 ### New Swift files
 ```
-LucidBoard/LucidBoard/Services/
+frontend/LucidBoard/Services/
 ├── AppRepository.swift            # protocol + NoteChange enum + factory
 ├── SupabaseRepository.swift       # wraps existing SupabaseService
 ├── LocalAPIRepository.swift       # URLSession + JSON to Django Ninja
 └── TokenStore.swift               # Keychain JWT storage
-LucidBoard/LucidBoardTests/
+frontend/LucidBoardTests/
 ├── LocalAPIRepositoryTests.swift
 └── AppRepositoryFactoryTests.swift
 ```
 
 ### Modified files
-- `LucidBoard/LucidBoard/LucidBoardApp.swift` — inject AppRepository
-- `LucidBoard/LucidBoard/ViewModels/BoardViewModel.swift` — use AppRepository, drop direct Realtime usage
-- `LucidBoard/LucidBoard/ViewModels/NoteViewModel.swift` — use AppRepository
-- `LucidBoard/LucidBoard/Services/SettingsManager.swift` — use AppRepository
-- `LucidBoard/LucidBoard/Sample.xcconfig` — add BACKEND_KIND and LOCAL_API_URL
-- `LucidBoard/LucidBoard/Config.xcconfig` (if it exists locally) — add the same keys
+- `frontend/LucidBoard/LucidBoardApp.swift` — inject AppRepository
+- `frontend/LucidBoard/ViewModels/BoardViewModel.swift` — use AppRepository, drop direct Realtime usage
+- `frontend/LucidBoard/ViewModels/NoteViewModel.swift` — use AppRepository
+- `frontend/LucidBoard/Services/SettingsManager.swift` — use AppRepository
+- `frontend/LucidBoard/Sample.xcconfig` — add BACKEND_KIND and LOCAL_API_URL
+- `frontend/LucidBoard/Config.xcconfig` (if it exists locally) — add the same keys
 
 ---
 
@@ -2034,14 +2034,14 @@ git commit -m "docs(backend): bootstrap and API reference"
 ### Task 15: Swift `TokenStore`
 
 **Files:**
-- Create: `LucidBoard/LucidBoard/Services/TokenStore.swift`
-- Test: `LucidBoard/LucidBoardTests/TokenStoreTests.swift`
+- Create: `frontend/LucidBoard/Services/TokenStore.swift`
+- Test: `frontend/LucidBoardTests/TokenStoreTests.swift`
 
 `★ Note ─────────────────────────────────────`
 `TokenStore` uses Apple's `Security` framework for Keychain access. Keychain isn't available in unit tests by default — `TokenStoreTests` uses an in-memory variant for assertion. The production `KeychainTokenStore` is exercised only via the smoke test and manual app run.
 `─────────────────────────────────────────────`
 
-- [ ] **Step 1: Write failing test `LucidBoard/LucidBoardTests/TokenStoreTests.swift`**
+- [ ] **Step 1: Write failing test `frontend/LucidBoardTests/TokenStoreTests.swift`**
 
 ```swift
 import XCTest
@@ -2085,7 +2085,7 @@ final class TokenStoreTests: XCTestCase {
 
 In Xcode: ⌘U (or `xcodebuild test -scheme LucidBoard`). Expected: build fails — `TokenStore`/`InMemoryTokenStore` not defined.
 
-- [ ] **Step 3: Implement `LucidBoard/LucidBoard/Services/TokenStore.swift`**
+- [ ] **Step 3: Implement `frontend/LucidBoard/Services/TokenStore.swift`**
 
 ```swift
 import Foundation
@@ -2193,7 +2193,7 @@ final class KeychainTokenStore: TokenStore {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LucidBoard/LucidBoard/Services/TokenStore.swift LucidBoard/LucidBoardTests/TokenStoreTests.swift
+git add frontend/LucidBoard/Services/TokenStore.swift frontend/LucidBoardTests/TokenStoreTests.swift
 git commit -m "feat(swift): TokenStore protocol with Keychain and in-memory impls"
 ```
 
@@ -2202,10 +2202,10 @@ git commit -m "feat(swift): TokenStore protocol with Keychain and in-memory impl
 ### Task 16: Swift `AppRepository` protocol + factory
 
 **Files:**
-- Create: `LucidBoard/LucidBoard/Services/AppRepository.swift`
-- Test: `LucidBoard/LucidBoardTests/AppRepositoryFactoryTests.swift`
+- Create: `frontend/LucidBoard/Services/AppRepository.swift`
+- Test: `frontend/LucidBoardTests/AppRepositoryFactoryTests.swift`
 
-- [ ] **Step 1: Write failing test `LucidBoard/LucidBoardTests/AppRepositoryFactoryTests.swift`**
+- [ ] **Step 1: Write failing test `frontend/LucidBoardTests/AppRepositoryFactoryTests.swift`**
 
 ```swift
 import XCTest
@@ -2234,7 +2234,7 @@ final class AppRepositoryFactoryTests: XCTestCase {
 
 - [ ] **Step 2: Run test, expect FAIL** (types not defined)
 
-- [ ] **Step 3: Implement `LucidBoard/LucidBoard/Services/AppRepository.swift`**
+- [ ] **Step 3: Implement `frontend/LucidBoard/Services/AppRepository.swift`**
 
 ```swift
 import Foundation
@@ -2305,7 +2305,7 @@ enum AppRepositoryFactory {
 
 - [ ] **Step 4: Create stub `SupabaseRepository.swift` and `LocalAPIRepository.swift` so the factory compiles**
 
-`LucidBoard/LucidBoard/Services/SupabaseRepository.swift`:
+`frontend/LucidBoard/Services/SupabaseRepository.swift`:
 ```swift
 import Foundation
 
@@ -2326,7 +2326,7 @@ final class SupabaseRepository: AppRepository {
 }
 ```
 
-`LucidBoard/LucidBoard/Services/LocalAPIRepository.swift`:
+`frontend/LucidBoard/Services/LocalAPIRepository.swift`:
 ```swift
 import Foundation
 
@@ -2360,10 +2360,10 @@ final class LocalAPIRepository: AppRepository {
 - [ ] **Step 6: Commit**
 
 ```bash
-git add LucidBoard/LucidBoard/Services/AppRepository.swift \
-        LucidBoard/LucidBoard/Services/SupabaseRepository.swift \
-        LucidBoard/LucidBoard/Services/LocalAPIRepository.swift \
-        LucidBoard/LucidBoardTests/AppRepositoryFactoryTests.swift
+git add frontend/LucidBoard/Services/AppRepository.swift \
+        frontend/LucidBoard/Services/SupabaseRepository.swift \
+        frontend/LucidBoard/Services/LocalAPIRepository.swift \
+        frontend/LucidBoardTests/AppRepositoryFactoryTests.swift
 git commit -m "feat(swift): AppRepository protocol + factory with stubs"
 ```
 
@@ -2372,13 +2372,13 @@ git commit -m "feat(swift): AppRepository protocol + factory with stubs"
 ### Task 17: Swift `SupabaseRepository` (real impl)
 
 **Files:**
-- Modify: `LucidBoard/LucidBoard/Services/SupabaseRepository.swift`
+- Modify: `frontend/LucidBoard/Services/SupabaseRepository.swift`
 
 `★ Note ─────────────────────────────────────`
 This implementation moves the existing logic from `SupabaseService.swift` and `BoardViewModel.subscribeToRealtime()` behind the protocol. `SupabaseService.swift` stays as-is (it's the underlying client); the new `SupabaseRepository` is a thin adapter. We add Realtime support to the adapter — which `BoardViewModel` no longer manages directly after Task 19.
 `─────────────────────────────────────────────`
 
-- [ ] **Step 1: Replace `LucidBoard/LucidBoard/Services/SupabaseRepository.swift`**
+- [ ] **Step 1: Replace `frontend/LucidBoard/Services/SupabaseRepository.swift`**
 
 ```swift
 import Foundation
@@ -2486,7 +2486,7 @@ Expected: build succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add LucidBoard/LucidBoard/Services/SupabaseRepository.swift
+git add frontend/LucidBoard/Services/SupabaseRepository.swift
 git commit -m "feat(swift): SupabaseRepository wraps existing service + Realtime"
 ```
 
@@ -2495,10 +2495,10 @@ git commit -m "feat(swift): SupabaseRepository wraps existing service + Realtime
 ### Task 18: Swift `LocalAPIRepository` (real impl)
 
 **Files:**
-- Modify: `LucidBoard/LucidBoard/Services/LocalAPIRepository.swift`
-- Test: `LucidBoard/LucidBoardTests/LocalAPIRepositoryTests.swift`
+- Modify: `frontend/LucidBoard/Services/LocalAPIRepository.swift`
+- Test: `frontend/LucidBoardTests/LocalAPIRepositoryTests.swift`
 
-- [ ] **Step 1: Write failing test `LucidBoard/LucidBoardTests/LocalAPIRepositoryTests.swift`**
+- [ ] **Step 1: Write failing test `frontend/LucidBoardTests/LocalAPIRepositoryTests.swift`**
 
 ```swift
 import XCTest
@@ -2616,7 +2616,7 @@ final class MockURLProtocol: URLProtocol {
 
 - [ ] **Step 2: Run tests, expect FAIL** (LocalAPIRepository init has different signature, methods unimplemented).
 
-- [ ] **Step 3: Replace `LucidBoard/LucidBoard/Services/LocalAPIRepository.swift`**
+- [ ] **Step 3: Replace `frontend/LucidBoard/Services/LocalAPIRepository.swift`**
 
 ```swift
 import Foundation
@@ -2842,7 +2842,7 @@ final class LocalAPIRepository: AppRepository {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LucidBoard/LucidBoard/Services/LocalAPIRepository.swift LucidBoard/LucidBoardTests/LocalAPIRepositoryTests.swift
+git add frontend/LucidBoard/Services/LocalAPIRepository.swift frontend/LucidBoardTests/LocalAPIRepositoryTests.swift
 git commit -m "feat(swift): LocalAPIRepository with retry-on-401 + inert subscription"
 ```
 
@@ -2851,16 +2851,16 @@ git commit -m "feat(swift): LocalAPIRepository with retry-on-401 + inert subscri
 ### Task 19: Wire `AppRepository` into the app
 
 **Files:**
-- Modify: `LucidBoard/LucidBoard/LucidBoardApp.swift`
-- Modify: `LucidBoard/LucidBoard/ViewModels/BoardViewModel.swift`
-- Modify: `LucidBoard/LucidBoard/ViewModels/NoteViewModel.swift`
-- Modify: `LucidBoard/LucidBoard/Services/SettingsManager.swift`
+- Modify: `frontend/LucidBoard/LucidBoardApp.swift`
+- Modify: `frontend/LucidBoard/ViewModels/BoardViewModel.swift`
+- Modify: `frontend/LucidBoard/ViewModels/NoteViewModel.swift`
+- Modify: `frontend/LucidBoard/Services/SettingsManager.swift`
 
 `★ Note ─────────────────────────────────────`
 This is the largest refactor in the plan. We're replacing every `SupabaseService.shared` reference and removing the direct Realtime usage from `BoardViewModel`. The replacement keeps all method signatures identical; only the call site changes.
 `─────────────────────────────────────────────`
 
-- [ ] **Step 1: Replace `LucidBoard/LucidBoard/LucidBoardApp.swift`**
+- [ ] **Step 1: Replace `frontend/LucidBoard/LucidBoardApp.swift`**
 
 ```swift
 import SwiftUI
@@ -2918,7 +2918,7 @@ struct LucidBoardApp: App {
 }
 ```
 
-- [ ] **Step 2: Replace `LucidBoard/LucidBoard/ViewModels/BoardViewModel.swift`**
+- [ ] **Step 2: Replace `frontend/LucidBoard/ViewModels/BoardViewModel.swift`**
 
 ```swift
 import SwiftUI
@@ -3084,7 +3084,7 @@ class BoardViewModel: ObservableObject {
 }
 ```
 
-- [ ] **Step 3: Replace `LucidBoard/LucidBoard/ViewModels/NoteViewModel.swift`**
+- [ ] **Step 3: Replace `frontend/LucidBoard/ViewModels/NoteViewModel.swift`**
 
 ```swift
 import SwiftUI
@@ -3172,7 +3172,7 @@ class NoteViewModel: ObservableObject, Identifiable {
 }
 ```
 
-- [ ] **Step 4: Replace `LucidBoard/LucidBoard/Services/SettingsManager.swift`**
+- [ ] **Step 4: Replace `frontend/LucidBoard/Services/SettingsManager.swift`**
 
 ```swift
 import Foundation
@@ -3253,10 +3253,10 @@ Expected: all tests pass.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add LucidBoard/LucidBoard/LucidBoardApp.swift \
-        LucidBoard/LucidBoard/ViewModels/BoardViewModel.swift \
-        LucidBoard/LucidBoard/ViewModels/NoteViewModel.swift \
-        LucidBoard/LucidBoard/Services/SettingsManager.swift
+git add frontend/LucidBoard/LucidBoardApp.swift \
+        frontend/LucidBoard/ViewModels/BoardViewModel.swift \
+        frontend/LucidBoard/ViewModels/NoteViewModel.swift \
+        frontend/LucidBoard/Services/SettingsManager.swift
 git commit -m "refactor(swift): inject AppRepository, drop direct SupabaseService usage"
 ```
 
@@ -3265,15 +3265,15 @@ git commit -m "refactor(swift): inject AppRepository, drop direct SupabaseServic
 ### Task 20: xcconfig keys + final wiring
 
 **Files:**
-- Modify: `LucidBoard/LucidBoard/Sample.xcconfig`
-- Modify: `LucidBoard/LucidBoard/Config.xcconfig` (only if exists locally)
-- Modify: `LucidBoard/LucidBoard/Info.plist` (add new keys so `Bundle.main.object(forInfoDictionaryKey:)` returns them)
+- Modify: `frontend/LucidBoard/Sample.xcconfig`
+- Modify: `frontend/LucidBoard/Config.xcconfig` (only if exists locally)
+- Modify: `frontend/LucidBoard/Info.plist` (add new keys so `Bundle.main.object(forInfoDictionaryKey:)` returns them)
 
 `★ Note ─────────────────────────────────────`
 xcconfig values reach runtime via `Info.plist` substitution (the standard `$(BACKEND_KIND)` pattern). The Info.plist file in this Xcode project is generated — check the project's "Info" tab in Xcode for where to add the entries, or edit `LucidBoard.xcodeproj/project.pbxproj` to add `INFOPLIST_KEY_BACKEND_KIND` and `INFOPLIST_KEY_LOCAL_API_URL` to the target's build settings.
 `─────────────────────────────────────────────`
 
-- [ ] **Step 1: Replace `LucidBoard/LucidBoard/Sample.xcconfig`**
+- [ ] **Step 1: Replace `frontend/LucidBoard/Sample.xcconfig`**
 
 ```
 // Get these from your Supabase Project Settings > API
@@ -3331,7 +3331,7 @@ Switch `BACKEND_KIND = supabase` in `Config.xcconfig`, build, and verify the Sup
 - [ ] **Step 5: Final commit**
 
 ```bash
-git add LucidBoard/LucidBoard/Sample.xcconfig \
+git add frontend/LucidBoard/Sample.xcconfig \
         LucidBoard.xcodeproj/project.pbxproj
 git commit -m "feat(swift): xcconfig keys to switch between Supabase and local API"
 ```
