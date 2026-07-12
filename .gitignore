@@ -79,3 +79,8 @@ GEMINI.md
 .agent/
 agent.md
 .gitignore
+
+# impeccable design context
+PRODUCT.md
+DESIGN.md
+.impeccable/
