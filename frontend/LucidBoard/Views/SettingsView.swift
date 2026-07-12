@@ -12,7 +12,7 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            Section("Note Defaults") {
+            Section {
                 ColorPicker("Default Color", selection: Binding(
                     get: { Color(hex: settingsManager.settings.defaultNoteColor) },
                     set: { settingsManager.settings.defaultNoteColor = $0.toHex() ?? "#FFF9C4" }
@@ -23,26 +23,37 @@ struct SettingsView: View {
                         Text(template.rawValue.capitalized).tag(template)
                     }
                 }
+            } header: {
+                Text("Note Defaults").font(.lucidHeadline(13))
             }
 
-            Section("Canvas") {
+            Section {
                 Picker("Default Layout", selection: $settingsManager.settings.defaultBackgroundLayout) {
                     ForEach(BackgroundLayout.allCases, id: \.self) { layout in
                         Text(layout.rawValue.capitalized).tag(layout)
                     }
                 }
+            } header: {
+                Text("Canvas").font(.lucidHeadline(13))
             }
 
-            Section("Appearance") {
+            Section {
                 Picker("Theme", selection: $settingsManager.settings.preferredColorScheme) {
                     ForEach(AppColorScheme.allCases, id: \.self) { scheme in
                         Text(scheme.rawValue.capitalized).tag(scheme)
                     }
                 }
                 .pickerStyle(.segmented)
+            } header: {
+                Text("Appearance").font(.lucidHeadline(13))
             }
         }
         .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Settings").font(.lucidHeadline(17))
+            }
+        }
     }
 }
 

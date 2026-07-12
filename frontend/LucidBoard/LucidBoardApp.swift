@@ -25,6 +25,8 @@ struct LucidBoardApp: App {
     @StateObject private var boardVM: BoardViewModel
 
     init() {
+        FontRegistrar.registerBundledFonts()
+
         let repo = AppRepositoryFactory.makeFromBundle()
         self.appRepository = repo
         let initialBoard = Board(

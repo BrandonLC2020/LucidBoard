@@ -16,6 +16,10 @@ class BoardViewModel: ObservableObject {
     @Published var offset: CGSize = .zero
     @Published var scale: CGFloat = 1.0
     @Published var isOrganizing: Bool = false
+    @Published var syncError: String?
+
+    private var syncErrorDismissTask: Task<Void, Never>?
+    private let syncErrorAutoDismiss: TimeInterval = 5.0
 
     // Last gesture state to handle cumulative panning/zooming
     var lastOffset: CGSize = .zero
@@ -48,14 +52,34 @@ class BoardViewModel: ObservableObject {
                 createViewModel(for: note)
             }
         } catch {
-            print("Error fetching notes: \(error)")
+            setSyncError("Couldn't load your notes. Check your connection and try again.")
         }
     }
 
     private func createViewModel(for note: Note) {
         let vm = NoteViewModel(note: note, repository: repository)
         vm.onLocalUpdate = { [weak self] id in self?.lastLocalUpdates[id] = Date() }
+        vm.onSyncError = { [weak self] in self?.setSyncError("Couldn't save your changes. They're only stored on this device for now.") }
         noteViewModels[note.id] = vm
+    }
+
+    /// Surfaces a failed sync instead of letting it fail silently. Optimistic local edits stay
+    /// on screen either way, so a swallowed error would otherwise read to the user as "saved."
+    @MainActor
+    private func setSyncError(_ message: String) {
+        syncError = message
+        syncErrorDismissTask?.cancel()
+        syncErrorDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(self?.syncErrorAutoDismiss ?? 5.0))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.syncError = nil }
+        }
+    }
+
+    @MainActor
+    func dismissSyncError() {
+        syncErrorDismissTask?.cancel()
+        syncError = nil
     }
 
     @MainActor
@@ -106,7 +130,13 @@ class BoardViewModel: ObservableObject {
     }
 
     private func syncBoard() {
-        Task { try? await repository.updateBoard(board) }
+        Task { @MainActor in
+            do {
+                try await repository.updateBoard(board)
+            } catch {
+                setSyncError("Couldn't save your board settings. They're only stored on this device for now.")
+            }
+        }
     }
 
     // Auto-Organize
@@ -128,14 +158,20 @@ class BoardViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("Error auto-organizing: \(error)")
+            setSyncError("Auto-Organize couldn't complete. Check your connection and try again.")
         }
     }
 
     @MainActor
     func deleteNote(id: UUID) {
         noteViewModels.removeValue(forKey: id)
-        Task { try? await repository.deleteNote(id: id) }
+        Task { @MainActor in
+            do {
+                try await repository.deleteNote(id: id)
+            } catch {
+                setSyncError("Couldn't delete that note. It may reappear once you're back online.")
+            }
+        }
     }
 
     @MainActor
@@ -169,7 +205,13 @@ class BoardViewModel: ObservableObject {
         lastLocalUpdates[newNote.id] = Date()
         createViewModel(for: newNote)
 
-        Task { try? await repository.upsertNote(newNote) }
+        Task { @MainActor in
+            do {
+                try await repository.upsertNote(newNote)
+            } catch {
+                setSyncError("Couldn't save your new note. It's only stored on this device for now.")
+            }
+        }
     }
 
     // Canvas transformation logic

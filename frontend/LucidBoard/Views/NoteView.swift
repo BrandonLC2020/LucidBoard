@@ -11,9 +11,17 @@ struct NoteView: View {
     @ObservedObject var viewModel: NoteViewModel
     @State private var mode: NoteMode = .text
     @State private var dragOffset: CGSize = .zero
-    
+    @State private var thermalPulse: ThermalPulse?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     var onDelete: () -> Void = {}
     var onBringToFront: () -> Void = {}
+
+    /// iPhone's compact width makes the iPad/Mac default note (200pt) span more than half the
+    /// screen; nil (Mac, visionOS) falls back to the regular-width size.
+    private var noteSize: CGFloat {
+        horizontalSizeClass == .compact ? 160 : 200
+    }
 
     private var adaptiveOpacity: Double {
         let baseColor = Color(hex: viewModel.note.color)
@@ -30,7 +38,7 @@ struct NoteView: View {
         Binding(
             get: { Color(hex: viewModel.note.color) },
             set: { newColor in
-                viewModel.note.color = UIColor(newColor).hexString
+                viewModel.note.color = PlatformColor(newColor).hexString
                 viewModel.syncNote()
             }
         )
@@ -46,12 +54,23 @@ struct NoteView: View {
                 Button(action: { mode = .text }) {
                     Image(systemName: "text.alignleft")
                         .foregroundStyle(mode == .text ? contentForegroundColor : contentForegroundColor.opacity(0.8))
+                        .padding(6)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Text mode")
+                .accessibilityAddTraits(mode == .text ? .isSelected : [])
+
+                #if os(iOS) || os(visionOS)
                 Button(action: { mode = .drawing }) {
                     Image(systemName: "pencil.tip")
                         .foregroundStyle(mode == .drawing ? contentForegroundColor : contentForegroundColor.opacity(0.8))
+                        .padding(6)
+                        .contentShape(Rectangle())
                 }
-                
+                .accessibilityLabel("Drawing mode")
+                .accessibilityAddTraits(mode == .drawing ? .isSelected : [])
+                #endif
+
                 Menu {
                     Section("Templates") {
                         Button("Plain") { viewModel.updateTemplate(.plain) }
@@ -63,18 +82,26 @@ struct NoteView: View {
                 } label: {
                     Image(systemName: "doc.richtext.fill")
                         .foregroundStyle(contentForegroundColor.opacity(0.8))
+                        .padding(6)
+                        .contentShape(Rectangle())
                 }
-                
+                .accessibilityLabel("Note template")
+
                 Spacer()
                 ColorPicker("", selection: colorBinding, supportsOpacity: false)
                     .labelsHidden()
                     .frame(width: 28, height: 28)
+                    .accessibilityLabel("Note color")
                 Image(systemName: "hand.tap")
                     .foregroundStyle(viewModel.isDragging ? .blue : contentForegroundColor.opacity(0.8))
+                    .accessibilityHidden(true)
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .foregroundStyle(.red.opacity(0.8))
+                        .padding(6)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Delete note")
             }
             .padding(.horizontal, 4)
             .padding(.top, 4)
@@ -87,26 +114,28 @@ struct NoteView: View {
                 if viewModel.note.template == .checklist && mode == .text {
                     // Handled inside NoteTemplateView for checklists
                 } else {
-                    if mode == .text {
+                    if mode == .drawing {
+                        #if os(iOS) || os(visionOS)
+                        PencilKitView(drawingData: $viewModel.drawingData)
+                            .allowsHitTesting(mode == .drawing)
+                        #endif
+                    } else {
                         TextEditor(text: Binding(
                             get: { viewModel.note.contentText ?? "" },
-                            set: { 
-                                viewModel.note.contentText = $0 
-                                viewModel.syncNote() 
+                            set: {
+                                viewModel.note.contentText = $0
+                                viewModel.syncNote()
                             }
                         ))
-                        .font(.system(size: 14, weight: .medium, design: .default))
+                        .font(.lucidNoteContent)
                         .foregroundStyle(contentForegroundColor)
                         .scrollContentBackground(.hidden)
-                    } else {
-                        PencilKitView(drawing: $viewModel.drawing)
-                            .allowsHitTesting(mode == .drawing)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 200, height: 200)
+        .frame(width: noteSize, height: noteSize)
         .padding(8)
         .background(
             ZStack {
@@ -132,6 +161,7 @@ struct NoteView: View {
                 )
         )
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
+        .thermalGlow(pulse: $thermalPulse)
         .offset(
             x: CGFloat(viewModel.note.posX) + dragOffset.width,
             y: CGFloat(viewModel.note.posY) + dragOffset.height
@@ -145,6 +175,7 @@ struct NoteView: View {
                     if !viewModel.isDragging {
                         onBringToFront()
                         viewModel.isDragging = true
+                        thermalPulse = ThermalPulse(at: value.startLocation)
                     }
                     dragOffset = value.translation
                 }
@@ -192,10 +223,27 @@ struct AnyInsettableShape: InsettableShape {
 }
 
 // Color Helpers
-extension UIColor {
+//
+// UIKit isn't available on native macOS, and AppKit's NSColor isn't available on iOS, so the
+// hex/luminance math below bridges through whichever platform color type actually exists rather
+// than hard-coding UIColor.
+#if canImport(UIKit)
+import UIKit
+typealias PlatformColor = UIColor
+#elseif canImport(AppKit)
+import AppKit
+typealias PlatformColor = NSColor
+#endif
+
+extension PlatformColor {
     var hexString: String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        #if canImport(AppKit) && !canImport(UIKit)
+        let rgbColor = usingColorSpace(.deviceRGB) ?? self
+        rgbColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
         getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
         return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }
@@ -227,15 +275,19 @@ extension Color {
     }
 
     func toHex() -> String? {
-        let uiColor = UIColor(self)
-        return uiColor.hexString
+        PlatformColor(self).hexString
     }
 
     var luminance: Double {
-        let uiColor = UIColor(self)
+        let platformColor = PlatformColor(self)
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-        
+        #if canImport(AppKit) && !canImport(UIKit)
+        let rgbColor = platformColor.usingColorSpace(.deviceRGB) ?? platformColor
+        rgbColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        #else
+        platformColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        #endif
+
         // standard relative luminance formula
         return 0.2126 * Double(r) + 0.7152 * Double(g) + 0.0722 * Double(b)
     }

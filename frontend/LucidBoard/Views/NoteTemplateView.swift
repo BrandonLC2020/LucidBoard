@@ -68,27 +68,34 @@ struct ChecklistContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(viewModel.note.checklistItems ?? []) { item in
-                    HStack {
+                    HStack(spacing: 4) {
                         Button(action: { viewModel.toggleChecklistItem(id: item.id) }) {
                             Image(systemName: item.isCompleted ? "checkmark.square.fill" : "square")
                                 .foregroundStyle(item.isCompleted ? .green : contentForegroundColor.opacity(0.7))
+                                .frame(minWidth: 32, minHeight: 32)
+                                .contentShape(Rectangle())
                         }
-                        
+                        .accessibilityLabel(item.isCompleted ? "Mark incomplete" : "Mark complete")
+
                         TextField("Item", text: Binding(
                             get: { item.text },
                             set: { viewModel.updateChecklistItemText(id: item.id, text: $0) }
                         ))
+                        .font(.lucidNoteContent)
                         .strikethrough(item.isCompleted)
                         .foregroundStyle(item.isCompleted ? contentForegroundColor.opacity(0.5) : contentForegroundColor)
-                        
+
                         Button(action: { viewModel.deleteChecklistItem(id: item.id) }) {
                             Image(systemName: "xmark.circle")
                                 .foregroundStyle(.red.opacity(0.5))
                                 .font(.caption)
+                                .frame(minWidth: 32, minHeight: 32)
+                                .contentShape(Rectangle())
                         }
+                        .accessibilityLabel("Delete item")
                     }
                 }
-                
+
                 Button(action: { viewModel.addChecklistItem() }) {
                     HStack {
                         Image(systemName: "plus.circle.fill")
@@ -97,7 +104,10 @@ struct ChecklistContentView: View {
                     .font(.caption)
                     .foregroundStyle(.blue)
                     .padding(.top, 4)
+                    .frame(minHeight: 32)
+                    .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Add checklist item")
             }
             .padding(8)
         }

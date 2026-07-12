@@ -7,15 +7,19 @@
 
 import SwiftUI
 import Combine
-import PencilKit
 
 class NoteViewModel: ObservableObject, Identifiable {
     @Published var note: Note
     @Published var isDragging: Bool = false
-    @Published var drawing: PKDrawing = PKDrawing()
+    /// Raw PencilKit drawing data. Kept as `Data` (not `PKDrawing`) so this view model stays
+    /// buildable on platforms without PencilKit (native macOS); only `PencilKitView` — compiled
+    /// for iOS/visionOS only — knows how to interpret the bytes.
+    @Published var drawingData: Data?
 
     // Callback to notify the board of local changes
     var onLocalUpdate: ((UUID) -> Void)?
+    // Callback to surface a failed sync to the board (and, from there, the user)
+    var onSyncError: (() -> Void)?
 
     private var cancellables = Set<AnyCancellable>()
     private let repository: AppRepository
@@ -23,23 +27,15 @@ class NoteViewModel: ObservableObject, Identifiable {
     init(note: Note, repository: AppRepository) {
         self.note = note
         self.repository = repository
-
-        // Deserialize drawing if present
-        if let drawingData = note.contentDrawing {
-            do {
-                self.drawing = try PKDrawing(data: drawingData)
-            } catch {
-                print("Error deserializing drawing: \(error)")
-            }
-        }
+        self.drawingData = note.contentDrawing
 
         // Observe drawing changes
-        $drawing
+        $drawingData
             .dropFirst()
             .debounce(for: .seconds(1), scheduler: RunLoop.main)
-            .sink { [weak self] newDrawing in
+            .sink { [weak self] newData in
                 guard let self else { return }
-                self.note.contentDrawing = newDrawing.dataRepresentation()
+                self.note.contentDrawing = newData
                 self.syncNote()
             }
             .store(in: &cancellables)
@@ -48,7 +44,14 @@ class NoteViewModel: ObservableObject, Identifiable {
     func syncNote() {
         self.note.updatedAt = Date()
         onLocalUpdate?(note.id)
-        Task { try? await repository.upsertNote(self.note) }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await repository.upsertNote(self.note)
+            } catch {
+                await MainActor.run { self.onSyncError?() }
+            }
+        }
     }
 
     var id: UUID { note.id }
