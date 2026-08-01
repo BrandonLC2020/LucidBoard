@@ -4,11 +4,12 @@ import uuid
 from datetime import datetime, timezone
 
 from core.firestore_client import get_client
-from core.models import Board, Profile, User
+from core.models import Board, Note, Profile, User
 
 USERS = "users"
 PROFILES = "profiles"
 BOARDS = "boards"
+NOTES = "notes"
 
 
 def _now() -> datetime:
@@ -108,3 +109,67 @@ def update_board(board_id: uuid.UUID, **fields) -> Board:
     fields["updated_at"] = _now()
     get_client().collection(BOARDS).document(str(board_id)).update(fields)
     return get_board(board_id)
+
+
+# --- Notes ---
+
+def _note_from_doc(doc_id: str, data: dict) -> Note:
+    return Note(
+        id=uuid.UUID(doc_id),
+        board_id=uuid.UUID(data["board_id"]),
+        user_id=uuid.UUID(data["user_id"]),
+        content_text=data.get("content_text"),
+        content_drawing=data.get("content_drawing"),
+        color=data["color"],
+        pos_x=data["pos_x"],
+        pos_y=data["pos_y"],
+        z_index=data["z_index"],
+        template=data["template"],
+        checklist_items=data.get("checklist_items", []),
+        embedding=data.get("embedding"),
+        created_at=data["created_at"],
+        updated_at=data["updated_at"],
+    )
+
+
+def list_notes_for_board(board_id: uuid.UUID) -> list[Note]:
+    query = (
+        get_client()
+        .collection(NOTES)
+        .where("board_id", "==", str(board_id))
+        .order_by("z_index")
+    )
+    return [_note_from_doc(doc.id, doc.to_dict()) for doc in query.stream()]
+
+
+def get_note(note_id: uuid.UUID) -> Note | None:
+    snap = get_client().collection(NOTES).document(str(note_id)).get()
+    if not snap.exists:
+        return None
+    return _note_from_doc(snap.id, snap.to_dict())
+
+
+def upsert_note(note_id: uuid.UUID, **fields) -> Note:
+    existing = get_note(note_id)
+    now = _now()
+    data = {
+        "board_id": str(fields["board_id"]),
+        "user_id": str(fields["user_id"]),
+        "content_text": fields.get("content_text"),
+        "content_drawing": fields.get("content_drawing"),
+        "color": fields["color"],
+        "pos_x": fields["pos_x"],
+        "pos_y": fields["pos_y"],
+        "z_index": fields["z_index"],
+        "template": fields.get("template", "plain"),
+        "checklist_items": fields.get("checklist_items", []),
+        "embedding": fields.get("embedding"),
+        "created_at": existing.created_at if existing else now,
+        "updated_at": now,
+    }
+    get_client().collection(NOTES).document(str(note_id)).set(data)
+    return _note_from_doc(str(note_id), data)
+
+
+def delete_note(note_id: uuid.UUID) -> None:
+    get_client().collection(NOTES).document(str(note_id)).delete()

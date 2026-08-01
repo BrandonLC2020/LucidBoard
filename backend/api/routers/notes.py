@@ -3,14 +3,14 @@ from __future__ import annotations
 import base64
 from uuid import UUID
 
-from django.http import HttpRequest
-from django.shortcuts import get_object_or_404
+from django.http import Http404, HttpRequest
 from ninja import Router
 
 from api.schemas import NoteOut, NoteUpsertIn
 from core.auth import JWTBearer
 from core.embeddings import generate_embedding
-from core.models import Board, Note
+from core.models import Note
+from core.repository import delete_note, get_board, get_note, list_notes_for_board, upsert_note
 
 router = Router(auth=JWTBearer())
 
@@ -19,8 +19,8 @@ def _decode_drawing(b64: str | None) -> bytes | None:
     return base64.b64decode(b64) if b64 else None
 
 
-def _encode_drawing(data: bytes | memoryview | None) -> str | None:
-    return base64.b64encode(bytes(data)).decode() if data else None
+def _encode_drawing(data: bytes | None) -> str | None:
+    return base64.b64encode(data).decode() if data else None
 
 
 def _serialize(note: Note) -> dict:
@@ -43,44 +43,46 @@ def _serialize(note: Note) -> dict:
 
 @router.get("/boards/{board_id}/notes", response=list[NoteOut])
 def list_notes(request: HttpRequest, board_id: UUID):
-    get_object_or_404(Board, id=board_id, user_id=request.auth.id)
-    notes = Note.objects.filter(board_id=board_id).order_by("z_index")
-    return [_serialize(n) for n in notes]
+    board = get_board(board_id)
+    if board is None or board.user_id != request.auth.id:
+        raise Http404
+    return [_serialize(n) for n in list_notes_for_board(board_id)]
 
 
 @router.put("/notes/{note_id}", response=NoteOut)
-def upsert_note(request: HttpRequest, note_id: UUID, payload: NoteUpsertIn):
-    get_object_or_404(Board, id=payload.board_id, user_id=request.auth.id)
-    existing = Note.objects.filter(id=note_id).first()
+def upsert_note_view(request: HttpRequest, note_id: UUID, payload: NoteUpsertIn):
+    board = get_board(payload.board_id)
+    if board is None or board.user_id != request.auth.id:
+        raise Http404
+    existing = get_note(note_id)
 
-    # Determine whether to call Gemini.
     new_text = payload.content_text or ""
     if existing is not None and existing.content_text == payload.content_text:
         embedding = existing.embedding  # reuse
     else:
         embedding = generate_embedding(new_text)
 
-    note, _ = Note.objects.update_or_create(
-        id=note_id,
-        defaults={
-            "board_id": payload.board_id,
-            "user_id": request.auth.id,
-            "content_text": payload.content_text,
-            "content_drawing": _decode_drawing(payload.content_drawing),
-            "color": payload.color,
-            "pos_x": payload.pos_x,
-            "pos_y": payload.pos_y,
-            "z_index": payload.z_index,
-            "template": payload.template,
-            "checklist_items": [item.model_dump() for item in payload.checklist_items],
-            "embedding": embedding,
-        },
+    note = upsert_note(
+        note_id,
+        board_id=payload.board_id,
+        user_id=request.auth.id,
+        content_text=payload.content_text,
+        content_drawing=_decode_drawing(payload.content_drawing),
+        color=payload.color,
+        pos_x=payload.pos_x,
+        pos_y=payload.pos_y,
+        z_index=payload.z_index,
+        template=payload.template,
+        checklist_items=[item.model_dump() for item in payload.checklist_items],
+        embedding=embedding,
     )
     return _serialize(note)
 
 
 @router.delete("/notes/{note_id}", response={204: None})
-def delete_note(request: HttpRequest, note_id: UUID):
-    note = get_object_or_404(Note, id=note_id, user_id=request.auth.id)
-    note.delete()
+def delete_note_view(request: HttpRequest, note_id: UUID):
+    note = get_note(note_id)
+    if note is None or note.user_id != request.auth.id:
+        raise Http404
+    delete_note(note_id)
     return 204, None

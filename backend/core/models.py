@@ -36,3 +36,21 @@ class Board:
     background_layout: str = "grid"
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+@dataclass
+class Note:
+    id: UUID
+    board_id: UUID
+    user_id: UUID
+    content_text: str | None = None
+    content_drawing: bytes | None = None
+    color: str = "#FFFFFF"
+    pos_x: float = 0.0
+    pos_y: float = 0.0
+    z_index: int = 0
+    template: str = "plain"
+    checklist_items: list[dict] = field(default_factory=list)
+    embedding: list[float] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
