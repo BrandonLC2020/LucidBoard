@@ -1,23 +1,22 @@
 from __future__ import annotations
 
-from django.db import connection
-from django.http import HttpRequest
-from django.shortcuts import get_object_or_404
+from django.http import Http404, HttpRequest
 from ninja import Router
 
 from api.schemas import MatchNoteResult, MatchNotesIn
 from core.auth import JWTBearer
-from core.models import Board
+from core.matching import match_notes
+from core.repository import get_board, list_notes_for_board
 
 router = Router(auth=JWTBearer())
 
 
 @router.post("/rpc/match_notes", response=list[MatchNoteResult])
-def match_notes(request: HttpRequest, payload: MatchNotesIn):
-    get_object_or_404(Board, id=payload.board_uuid, user_id=request.auth.id)
-    with connection.cursor() as cur:
-        cur.execute("SELECT id, new_x, new_y FROM match_notes(%s);", [str(payload.board_uuid)])
-        rows = cur.fetchall()
+def match_notes_view(request: HttpRequest, payload: MatchNotesIn):
+    board = get_board(payload.board_uuid)
+    if board is None or board.user_id != request.auth.id:
+        raise Http404
+    notes = list_notes_for_board(payload.board_uuid)
     return [
-        MatchNoteResult(id=row[0], new_x=row[1], new_y=row[2]) for row in rows
+        MatchNoteResult(id=p.id, new_x=p.new_x, new_y=p.new_y) for p in match_notes(notes)
     ]
