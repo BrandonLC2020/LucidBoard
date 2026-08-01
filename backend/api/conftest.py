@@ -10,7 +10,7 @@ def client():
 
 
 @pytest.fixture
-def auth_client(db):
+def auth_client():
     user, token = mint_anonymous_token()
     c = Client(HTTP_AUTHORIZATION=f"Bearer {token}")
     c.user = user

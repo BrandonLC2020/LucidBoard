@@ -6,18 +6,37 @@ from ninja import NinjaAPI
 from ninja.errors import AuthenticationError, ValidationError
 
 from api.routers.auth import router as auth_router
-from api.routers.boards import router as boards_router
-from api.routers.notes import router as notes_router
 from api.routers.profiles import router as profiles_router
-from api.routers.rpc import router as rpc_router
 
 api = NinjaAPI(title="LucidBoard Local API", version="0.1.0", urls_namespace="api")
 
 api.add_router("/auth", auth_router)
-api.add_router("/api", boards_router)
-api.add_router("/api", notes_router)
 api.add_router("/api", profiles_router)
-api.add_router("/api", rpc_router)
+
+# boards/notes/rpc routers still import core.models.Board/Note, which don't
+# exist until the Firestore migration lands them (Tasks 4/5/7). Guard these
+# imports so the API app keeps booting in the interim; once Board/Note exist
+# these will import and register normally with no further changes needed.
+try:
+    from api.routers.boards import router as boards_router
+except ImportError:
+    boards_router = None
+else:
+    api.add_router("/api", boards_router)
+
+try:
+    from api.routers.notes import router as notes_router
+except ImportError:
+    notes_router = None
+else:
+    api.add_router("/api", notes_router)
+
+try:
+    from api.routers.rpc import router as rpc_router
+except ImportError:
+    rpc_router = None
+else:
+    api.add_router("/api", rpc_router)
 
 
 @api.get("/api/health")

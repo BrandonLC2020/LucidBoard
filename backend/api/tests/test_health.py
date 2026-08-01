@@ -1,8 +1,3 @@
-import pytest
-
-pytestmark = pytest.mark.django_db
-
-
 def test_health_endpoint_returns_ok(client):
     res = client.get("/api/health")
     assert res.status_code == 200

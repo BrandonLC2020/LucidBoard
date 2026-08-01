@@ -6,14 +6,12 @@ import pytest
 from django.conf import settings
 
 from core.auth import decode_token, mint_anonymous_token
-from core.models import User
-
-pytestmark = pytest.mark.django_db
+from core.repository import get_user
 
 
 def test_mint_anonymous_token_creates_user():
     user, token = mint_anonymous_token()
-    assert User.objects.filter(id=user.id).exists()
+    assert get_user(user.id) is not None
     assert user.is_anonymous_user is True
 
 

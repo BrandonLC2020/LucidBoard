@@ -5,20 +5,20 @@ from ninja import Router
 
 from api.schemas import ProfileOut, ProfileUpsertIn
 from core.auth import JWTBearer
-from core.models import Profile
+from core.repository import get_profile, upsert_profile
 
 router = Router(auth=JWTBearer())
 
 
 @router.get("/profile", response=ProfileOut)
-def get_profile(request: HttpRequest):
-    profile, _ = Profile.objects.get_or_create(user=request.auth)
+def get_profile_view(request: HttpRequest):
+    profile = get_profile(request.auth.id)
+    if profile is None:
+        profile = upsert_profile(request.auth.id, settings={})
     return ProfileOut(settings=profile.settings)
 
 
 @router.put("/profile", response=ProfileOut)
-def upsert_profile(request: HttpRequest, payload: ProfileUpsertIn):
-    profile, _ = Profile.objects.update_or_create(
-        user=request.auth, defaults={"settings": payload.settings}
-    )
+def upsert_profile_view(request: HttpRequest, payload: ProfileUpsertIn):
+    profile = upsert_profile(request.auth.id, settings=payload.settings)
     return ProfileOut(settings=profile.settings)

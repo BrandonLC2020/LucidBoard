@@ -1,16 +1,12 @@
-import pytest
-
-from core.models import Profile
-
-pytestmark = pytest.mark.django_db
+from core.repository import get_profile
 
 
 def test_get_profile_auto_creates_on_first_call(auth_client):
-    assert not Profile.objects.filter(user=auth_client.user).exists()
+    assert get_profile(auth_client.user.id) is None
     res = auth_client.get("/api/profile")
     assert res.status_code == 200
     assert res.json() == {"settings": {}}
-    assert Profile.objects.filter(user=auth_client.user).exists()
+    assert get_profile(auth_client.user.id) is not None
 
 
 def test_upsert_profile(auth_client):
@@ -20,5 +16,5 @@ def test_upsert_profile(auth_client):
         content_type="application/json",
     )
     assert res.status_code == 200
-    profile = Profile.objects.get(user=auth_client.user)
+    profile = get_profile(auth_client.user.id)
     assert profile.settings == {"defaultNoteColor": "#000"}

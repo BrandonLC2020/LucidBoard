@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -7,11 +8,12 @@ from django.conf import settings
 from ninja.security import HttpBearer
 
 from core.models import User
+from core.repository import create_anonymous_user, get_user
 
 
 def mint_anonymous_token() -> tuple[User, str]:
     """Create a fresh anonymous user and return (user, signed_jwt)."""
-    user = User.objects.create_anonymous()
+    user = create_anonymous_user()
     now = datetime.now(tz=timezone.utc)
     payload = {
         "sub": str(user.id),
@@ -26,15 +28,19 @@ def mint_anonymous_token() -> tuple[User, str]:
 
 
 def decode_token(token: str) -> User:
-    """Verify a JWT and return the User row it identifies.
+    """Verify a JWT and return the User it identifies.
 
     Raises jwt.InvalidTokenError subclasses on failure
-    (InvalidSignatureError, ExpiredSignatureError, ...).
+    (InvalidSignatureError, ExpiredSignatureError, ...), and ValueError
+    if the token's subject no longer exists in Firestore.
     """
     payload = jwt.decode(
         token, settings.JWT_SECRET, algorithms=["HS256"], audience="authenticated"
     )
-    return User.objects.get(id=payload["sub"])
+    user = get_user(uuid.UUID(payload["sub"]))
+    if user is None:
+        raise ValueError(f"user {payload['sub']} not found")
+    return user
 
 
 class JWTBearer(HttpBearer):
@@ -43,7 +49,7 @@ class JWTBearer(HttpBearer):
     def authenticate(self, request, token: str) -> User | None:
         try:
             user = decode_token(token)
-        except (jwt.InvalidTokenError, User.DoesNotExist):
+        except (jwt.InvalidTokenError, ValueError):
             return None
         request.user = user
         return user

@@ -1,10 +1,7 @@
-import pytest
 from django.conf import settings
 import jwt
 
-from core.models import User
-
-pytestmark = pytest.mark.django_db
+from core.repository import get_user
 
 
 def test_anonymous_signup_creates_user_and_returns_token(client):
@@ -19,7 +16,8 @@ def test_anonymous_signup_creates_user_and_returns_token(client):
         algorithms=["HS256"], audience="authenticated",
     )
     assert payload["sub"] == body["user"]["id"]
-    assert User.objects.filter(id=body["user"]["id"]).exists()
+    import uuid
+    assert get_user(uuid.UUID(body["user"]["id"])) is not None
 
 
 def test_anonymous_signup_without_query_param_returns_400(client):
