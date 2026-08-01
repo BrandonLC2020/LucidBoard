@@ -25,3 +25,14 @@ class Profile:
     user_id: UUID
     settings: dict = field(default_factory=dict)
     updated_at: datetime | None = None
+
+
+@dataclass
+class Board:
+    id: UUID
+    user_id: UUID
+    title: str = "Untitled"
+    background_color: str = "#FFFFFF"
+    background_layout: str = "grid"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
