@@ -73,7 +73,7 @@ def upsert_note_view(request: HttpRequest, note_id: UUID, payload: NoteUpsertIn)
         pos_y=payload.pos_y,
         z_index=payload.z_index,
         template=payload.template,
-        checklist_items=[item.model_dump() for item in payload.checklist_items],
+        checklist_items=[{**item.model_dump(), "id": str(item.id)} for item in payload.checklist_items],
         embedding=embedding,
     )
     return _serialize(note)

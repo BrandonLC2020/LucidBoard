@@ -60,6 +60,32 @@ def test_upsert_creates_note_and_calls_embedding(auth_client):
     assert note.embedding == fake_vector
 
 
+def test_upsert_with_nonempty_checklist_items_round_trips(auth_client):
+    board = create_board(auth_client.user.id, title="b")
+    note_id = uuid.uuid4()
+    item_id = uuid.uuid4()
+    checklist_items = [{"id": str(item_id), "text": "buy milk", "is_completed": False}]
+    with patch("api.routers.notes.generate_embedding", return_value=None):
+        res = auth_client.put(
+            f"/api/notes/{note_id}",
+            data=_note_payload(board.id, checklist_items=checklist_items),
+            content_type="application/json",
+        )
+    assert res.status_code == 200
+    body = res.json()
+    assert len(body["checklist_items"]) == 1
+    returned_item = body["checklist_items"][0]
+    assert returned_item["id"] == str(item_id)
+    assert returned_item["text"] == "buy milk"
+    assert returned_item["is_completed"] is False
+
+    note = get_note(note_id)
+    assert len(note.checklist_items) == 1
+    assert note.checklist_items[0]["id"] == str(item_id)
+    assert note.checklist_items[0]["text"] == "buy milk"
+    assert note.checklist_items[0]["is_completed"] is False
+
+
 def test_upsert_skips_embedding_when_content_unchanged(auth_client):
     board = create_board(auth_client.user.id, title="b")
     note_id = uuid.uuid4()
