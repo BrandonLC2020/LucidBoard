@@ -41,6 +41,12 @@ def match_notes(notes: list[Note]) -> list[MatchedPosition]:
     their own cluster. Clusters are laid out left-to-right by descending
     size (ties broken by cluster id), notes within a cluster top-to-bottom
     ordered by note id.
+
+    Note: unlike the original SQL (which used an inner join and silently
+    dropped any note with no other embedded note on the board), this port
+    always returns a position for every note passed in, including a single
+    isolated embedded note (which gets its own singleton cluster). This is
+    an intentional, disclosed improvement, not a parity bug.
     """
     embedded = [n for n in notes if n.embedding is not None]
     unembedded = [n for n in notes if n.embedding is None]

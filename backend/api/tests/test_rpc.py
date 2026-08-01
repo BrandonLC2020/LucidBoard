@@ -101,3 +101,17 @@ def test_match_notes_pure_function_handles_no_embeddings():
     positions = match_notes([n1])
     assert len(positions) == 1
     assert positions[0].id == n1.id
+
+
+def test_match_notes_pure_function_handles_single_embedded_note():
+    # Disclosed divergence from the retired SQL (which inner-joined embedded
+    # notes against each other and silently dropped a note with no peer):
+    # a single isolated embedded note still gets its own singleton cluster
+    # and a returned position.
+    board_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    n1 = Note(id=uuid.uuid4(), board_id=board_id, user_id=user_id, color="#fff",
+               pos_x=0, pos_y=0, z_index=0, embedding=_fake_embedding(0.1))
+    positions = match_notes([n1])
+    assert len(positions) == 1
+    assert positions[0].id == n1.id

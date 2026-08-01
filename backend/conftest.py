@@ -26,9 +26,18 @@ def clear_firestore():
     project_id = os.environ.get("FIRESTORE_PROJECT_ID", "demo-lucidboard")
     reset_client_for_tests()
     url = f"http://{host}/emulator/v1/projects/{project_id}/databases/(default)/documents"
-    requests.delete(url, timeout=5)
+    try:
+        resp = requests.delete(url, timeout=5)
+    except requests.exceptions.RequestException as exc:
+        pytest.exit(
+            f"Could not reach the Firestore emulator at {host} — is it running?\n"
+            "Start it with: firebase emulators:start --only firestore --project demo-lucidboard\n"
+            f"({exc})",
+            returncode=1,
+        )
+    resp.raise_for_status()
     yield
-    requests.delete(url, timeout=5)
+    requests.delete(url, timeout=5).raise_for_status()
 
 
 @pytest.fixture
