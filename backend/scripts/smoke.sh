@@ -1,20 +1,37 @@
 #!/usr/bin/env bash
-# End-to-end smoke test against a running local backend.
+# End-to-end smoke test against a running local backend + Firestore emulator.
 # Usage: ./scripts/smoke.sh
 set -euo pipefail
 
 BASE="${BASE:-http://127.0.0.1:8000}"
+PY="${PY:-python3}"
 
 echo "==> signup"
-PY="${PY:-python3}"
 TOKEN=$(curl -sf -X POST "$BASE/auth/v1/signup?anonymous=true" | "$PY" -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 AUTH="Authorization: Bearer $TOKEN"
-
-echo "==> seed board (boards are normally created by the Swift app; insert via psql for a deterministic smoke run)"
-BOARD_ID=$("$PY" -c 'import uuid;print(uuid.uuid4())')
 USER_ID=$("$PY" -c 'import sys,json,base64;tok=sys.argv[1].split(".")[1];tok+="="*((4-len(tok)%4)%4);print(json.loads(base64.urlsafe_b64decode(tok))["sub"])' "$TOKEN")
-docker exec -i lucidboard-db psql -U lucidboard -d lucidboard -c \
-  "INSERT INTO boards (id, user_id, title, background_color, background_layout, created_at, updated_at) VALUES ('$BOARD_ID', '$USER_ID', 'Smoke', '#FFFFFF', 'grid', now(), now());"
+
+echo "==> seed board directly in the Firestore emulator (boards are normally created by the Swift app)"
+BOARD_ID=$("$PY" - "$USER_ID" <<'EOF'
+import sys, uuid
+from datetime import datetime, timezone
+from google.cloud import firestore
+
+user_id = sys.argv[1]
+board_id = str(uuid.uuid4())
+client = firestore.Client(project="demo-lucidboard")
+now = datetime.now(tz=timezone.utc)
+client.collection("boards").document(board_id).set({
+    "user_id": user_id,
+    "title": "Smoke",
+    "background_color": "#FFFFFF",
+    "background_layout": "grid",
+    "created_at": now,
+    "updated_at": now,
+})
+print(board_id)
+EOF
+)
 
 echo "==> list boards"
 curl -sf -H "$AUTH" "$BASE/api/boards" | "$PY" -m json.tool

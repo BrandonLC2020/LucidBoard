@@ -46,5 +46,11 @@ uv run pytest -v
 
 - Anonymous-only auth (no email/password, no OAuth)
 - No realtime/WebSocket sync (LocalAPIRepository returns inert subscription)
-- Local dev only — no production deployment config
+- Local dev only — this backend and its Firestore Emulator are not deployed anywhere;
+  production still runs Supabase until the prod cutover task lands
+- `firestore.indexes.json` is empty — the emulator doesn't enforce composite-index
+  requirements, but real Firestore will; add the `boards` (user_id ==, updated_at desc)
+  composite index here before pointing this backend at production Firestore
+- `match_notes` clustering is pairwise nearest-neighbor (ported as-is from the retired
+  Postgres function), not a transitive/global clustering algorithm
 - No data migration from Supabase (starts empty)

@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-import pytest
-
 from core.embeddings import generate_embedding
 
 
@@ -13,7 +11,6 @@ def test_generate_embedding_returns_none_for_empty_text():
 def test_generate_embedding_calls_gemini_and_returns_vector(settings):
     settings.GEMINI_API_KEY = "fake-api-key"
     fake_vector = [0.1] * 768
-    fake_response = type("R", (), {"__getitem__": lambda self, k: fake_vector})()
     with patch("core.embeddings._embed") as mock_embed:
         mock_embed.return_value = {"embedding": fake_vector}
         result = generate_embedding("Hello world")
