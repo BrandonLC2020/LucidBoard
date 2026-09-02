@@ -77,7 +77,9 @@ GEMINI.md
 
 # User requested additions
 .agent/
+.agents/
 agent.md
+AGENTS.md
 .gitignore
 
 # impeccable design context
